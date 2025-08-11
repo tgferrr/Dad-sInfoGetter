@@ -1,1 +1,88 @@
-<h1>hello<h1/>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Monitor Roblox — Histórico de Online</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Monitor Roblox</div>
+    <div class="controls">
+      <input id="usernameInput" placeholder="Nome do usuário Roblox" />
+      <button id="setUserBtn" title="Definir usuário">Definir</button>
+      <button id="resetBtn" title="Resetar histórico">Resetar</button>
+      <div id="liveStatus" class="status">Status: —</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel small">
+      <h3>Resumo de hoje</h3>
+      <div class="summary">
+        <div>
+          <div class="label">Acumulado hoje</div>
+          <div id="todayTotal" class="big">00:00:00</div>
+        </div>
+        <div>
+          <div class="label">Sessão atual</div>
+          <div id="currentSession" class="big">—</div>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button id="exportCsv">Exportar CSV</button>
+        <button id="exportXls">Exportar XLS</button>
+        <label><input id="useSim" type="checkbox"> Usar simulador (testes)</label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Histórico</h3>
+      <div class="filters">
+        <input id="filterDate" type="date" />
+        <input id="filterGame" placeholder="Filtrar por jogo" />
+        <select id="sortBy">
+          <option value="timestamp_desc">Ordenar: Mais recente</option>
+          <option value="timestamp_asc">Ordenar: Mais antigo</option>
+          <option value="duration_desc">Duração: Maior</option>
+          <option value="duration_asc">Duração: Menor</option>
+        </select>
+        <input id="searchText" placeholder="Pesquisar..." />
+      </div>
+
+      <div id="tableWrap" class="table-wrap">
+        <table id="historyTable">
+          <thead>
+            <tr>
+              <th>Início</th>
+              <th>Fim</th>
+              <th>Duração</th>
+              <th>Jogo</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <button id="prevPage">«</button>
+        <span id="pageInfo">1 / 1</span>
+        <button id="nextPage">»</button>
+      </div>
+    </section>
+
+    <section class="panel small">
+      <h3>Logs</h3>
+      <pre id="logs" class="logs" aria-live="polite"></pre>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Uai — criado pra monitorar um usuário do Roblox no navegador. Veja instruções no final da página.
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
