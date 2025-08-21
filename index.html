@@ -78,7 +78,12 @@
             <p class="mb-0">Relatório de tempo jogado baseado nos dados da API</p>
         </div>
 
-        <div id="api-status"></div>
+        <div id="api-status">
+            <div class="api-status">
+                <i class="bi bi-info-circle"></i> 
+                Conectando diretamente à API: http://201.23.67.218:8000/
+            </div>
+        </div>
 
         <div class="card">
             <div class="card-body">
@@ -90,7 +95,7 @@
                     </div>
                     <div class="col-md-3">
                         <label for="end-date" class="form-label">Data Final</label>
-                        <input type="date" class="form-control" id="end-date">
+                        <input type="date" class="form-control" id="end-date" value="2025-08-30">
                     </div>
                     <div class="col-md-3">
                         <label for="user-filter" class="form-label">Usuário</label>
@@ -168,29 +173,6 @@
         // Configuração inicial
         document.getElementById('end-date').valueAsDate = new Date();
         
-        // Função para testar a conexão com a API
-        async function testApiConnection() {
-            const statusElement = document.getElementById('api-status');
-            
-            try {
-                statusElement.innerHTML = '<div class="api-status">Testando conexão com a API...</div>';
-                
-                const response = await fetch('http://201.23.67.218:8000/export-xlsx?start=2025-08-01&end=2025-08-02&online_only=true', {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    statusElement.innerHTML = '<div class="api-status api-success"><i class="bi bi-check-circle-fill"></i> Conexão com a API bem-sucedida! Clique em "Carregar Dados" para buscar as informações.</div>';
-                } else {
-                    statusElement.innerHTML = `<div class="api-status api-error"><i class="bi bi-exclamation-circle-fill"></i> API retornou status ${response.status}. Verifique se o endpoint está correto.</div>`;
-                }
-            } catch (error) {
-                statusElement.innerHTML = `<div class="api-status api-error"><i class="bi bi-x-circle-fill"></i> Erro ao conectar com a API: ${error.message}. Verifique se o servidor está online e acessível.</div>`;
-            }
-        }
-        
         // Função para carregar dados da API
         async function loadData() {
             const startDate = document.getElementById('start-date').value;
@@ -206,12 +188,38 @@
                 // Atualizar status da API
                 document.getElementById('api-status').innerHTML = '<div class="api-status">Conectando à API...</div>';
                 
-                // Fazer requisição para a API
-                const response = await fetch(`http://201.23.67.218:8000/export-xlsx?start=${startDate}&end=${endDate}&online_only=true`, {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
+                // Fazer requisição diretamente para a API
+                // NOTA: Isso pode falhar devido a políticas CORS
+                const apiUrl = `http://201.23.67.218:8000/export-xlsx?start=${startDate}&end=${endDate}&online_only=true`;
+                
+                // Tentativa 1: Usando fetch com mode 'no-cors' (limita o acesso à resposta)
+                let response;
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        mode: 'cors' // Tenta primeiro com CORS
+                    });
+                } catch (corsError) {
+                    // Se falhar devido a CORS, tenta com mode 'no-cors'
+                    console.log('Tentando com mode no-cors devido a erro CORS:', corsError);
+                    response = await fetch(apiUrl, {
+                        method: 'GET',
+                        mode: 'no-cors',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    // Modo no-cors não permite acesso à resposta, então precisamos de uma abordagem alternativa
+                    document.getElementById('api-status').innerHTML = '<div class="api-status api-error">Erro de CORS. Tentando abordagem alternativa...</div>';
+                    
+                    // Abordagem alternativa: usar um proxy CORS simples via JavaScript
+                    await loadWithCorsProxy(apiUrl, userFilter);
+                    return;
+                }
                 
                 if (!response.ok) {
                     throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
@@ -220,7 +228,7 @@
                 const data = await response.json();
                 
                 // Atualizar status da API
-                document.getElementById('api-status').innerHTML = `<div class="api-status api-success"><i class="bi bi-check-circle-fill"></i> Dados carregados com sucesso! ${data.length || data.data.length} registros encontrados.</div>`;
+                document.getElementById('api-status').innerHTML = `<div class="api-status api-success"><i class="bi bi-check-circle-fill"></i> Dados carregados com sucesso! ${data.length || (data.data ? data.data.length : 0)} registros encontrados.</div>`;
                 
                 // Processar dados
                 processData(data, userFilter);
@@ -233,6 +241,103 @@
                 // Atualizar status da API
                 document.getElementById('api-status').innerHTML = `<div class="api-status api-error"><i class="bi bi-x-circle-fill"></i> Erro: ${error.message}</div>`;
             }
+        }
+
+        // Função alternativa para contornar CORS usando um proxy
+        async function loadWithCorsProxy(apiUrl, userFilter) {
+            try {
+                // Usando um proxy CORS público
+                const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
+                
+                if (!response.ok) {
+                    throw new Error(`Erro no proxy CORS: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Atualizar status da API
+                document.getElementById('api-status').innerHTML = `<div class="api-status api-success"><i class="bi bi-check-circle-fill"></i> Dados carregados via proxy! ${data.length || (data.data ? data.data.length : 0)} registros encontrados.</div>`;
+                
+                // Processar dados
+                processData(data, userFilter);
+            } catch (proxyError) {
+                // Se tudo falhar, usar dados de exemplo
+                document.getElementById('api-status').innerHTML = `<div class="api-status api-error"><i class="bi bi-exclamation-triangle"></i> Erro ao acessar a API: ${proxyError.message}. Mostrando dados de exemplo.</div>`;
+                
+                // Dados de exemplo para demonstração
+                const sampleData = getSampleData();
+                processData(sampleData, userFilter);
+            }
+        }
+
+        // Função para gerar dados de exemplo
+        function getSampleData() {
+            return [
+                {
+                    timestamp: "2025-08-15T18:50:02.509486",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "DOORS 👁 [🌐]"
+                },
+                {
+                    timestamp: "2025-08-15T18:51:02.706112",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[ACTUALIZAÇÃO!] Campo de Batalha"
+                },
+                {
+                    timestamp: "2025-08-15T19:11:02.748878",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[🎣] 99 noites na floresta 🔦"
+                },
+                {
+                    timestamp: "2025-08-16T11:50:02.586553",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[ACTUALIZAÇÃO!] Campo de Batalha"
+                },
+                {
+                    timestamp: "2025-08-17T23:10:02.636693",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[🎣] 99 noites na floresta 🔦"
+                },
+                {
+                    timestamp: "2025-08-18T21:00:03.145590",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[99 Noites no MODDED]"
+                },
+                {
+                    timestamp: "2025-08-18T23:17:02.312298",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[ACTUALIZAÇÃO!] Campo de Batalha"
+                },
+                {
+                    timestamp: "2025-08-19T22:40:02.542496",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[🎣] 99 noites na floresta 🔦"
+                },
+                {
+                    timestamp: "2025-08-20T18:50:02.935949",
+                    userId: 9005903,
+                    userName: "Hugo",
+                    status: "Jogando",
+                    gameName: "[🎣] 99 noites na floresta 🔦"
+                }
+            ];
         }
 
         // Função para processar os dados e calcular o tempo jogado
@@ -392,9 +497,10 @@
             document.getElementById('stats-container').style.display = 'block';
         }
 
-        // Testar conexão com a API ao carregar a página
+        // Carregar dados ao iniciar
         window.onload = function() {
-            testApiConnection();
+            // Tentar carregar dados reais automaticamente
+            loadData();
         };
     </script>
 </body>
