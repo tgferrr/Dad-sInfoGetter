@@ -16,6 +16,12 @@
             --border: #dddddd;
         }
         
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--background);
@@ -42,6 +48,7 @@
         
         .status-container {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             gap: 20px;
             margin-bottom: 30px;
@@ -53,6 +60,7 @@
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             flex: 1;
+            min-width: 300px;
         }
         
         .status {
@@ -66,11 +74,13 @@
             height: 20px;
             border-radius: 50%;
             margin-right: 10px;
+            flex-shrink: 0;
         }
         
         .online { background-color: var(--online); }
         .offline { background-color: var(--offline); }
         .playing { background-color: var(--playing); }
+        .unknown { background-color: #95a5a6; }
         
         .status-text {
             font-size: 1.2rem;
@@ -130,35 +140,69 @@
             cursor: pointer;
             margin-top: 10px;
             transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         
         button:hover {
             background-color: #2980b9;
         }
         
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
         .controls {
             display: flex;
             gap: 10px;
             margin-top: 20px;
+            flex-wrap: wrap;
         }
         
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
             border-radius: 50%;
             border-top-color: #fff;
             animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
         }
         
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         
+        .error-message {
+            color: var(--offline);
+            padding: 10px;
+            background-color: #ffeeee;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .info-message {
+            color: var(--primary);
+            padding: 10px;
+            background-color: #eef7ff;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
         @media (max-width: 768px) {
             .status-container {
                 flex-direction: column;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
             }
         }
     </style>
@@ -173,7 +217,7 @@
         <div class="card">
             <h2>Status Atual</h2>
             <div class="status">
-                <div id="statusIndicator" class="status-indicator"></div>
+                <div id="statusIndicator" class="status-indicator unknown"></div>
                 <div>
                     <div id="statusText" class="status-text">Carregando...</div>
                     <div id="lastChecked" class="last-checked">Última verificação: -</div>
@@ -182,6 +226,9 @@
             <div id="locationInfo">
                 <p><strong>Localização:</strong> <span id="locationText">-</span></p>
                 <p><strong>Jogo:</strong> <span id="gameText">-</span></p>
+            </div>
+            <div id="errorMessage" class="error-message" style="display: none;">
+                Erro ao conectar com o servidor. Verificando novamente em <span id="countdown">60</span> segundos.
             </div>
         </div>
         
@@ -206,7 +253,9 @@
                 </div>
             </div>
             <div class="controls">
-                <button id="checkNowButton">Verificar Agora</button>
+                <button id="checkNowButton">
+                    <span class="loading"></span> Verificar Agora
+                </button>
                 <button id="resetButton">Limpar Histórico</button>
             </div>
         </div>
@@ -233,11 +282,14 @@
             const sessionsList = document.getElementById('sessionsList');
             const checkNowButton = document.getElementById('checkNowButton');
             const resetButton = document.getElementById('resetButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const countdownElement = document.getElementById('countdown');
             
             let checkInterval;
             let currentStatus = '';
             let sessionStartTime = null;
             let nextCheckTime = null;
+            let isOnline = false;
             
             // Inicializar dados no localStorage se não existirem
             if (!localStorage.getItem('playerSessions')) {
@@ -267,10 +319,15 @@
             // Função para buscar o status do jogador
             async function checkPlayerStatus() {
                 try {
-                    checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
                     checkNowButton.disabled = true;
+                    checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
+                    errorMessage.style.display = 'none';
                     
-                    const response = await fetch('http://201.23.67.218:8000/get-user-status/8631412913', {
+                    // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
+                    const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=';
+                    const targetUrl = 'http://201.23.67.218:8000/get-user-status/8631412913';
+                    
+                    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
                         method: 'GET',
                         headers: {
                             'accept': 'application/json'
@@ -288,6 +345,8 @@
                     
                     // Se o status é "Jogando" ou "online"
                     if (newStatus.toLowerCase().includes('jogando') || newStatus.toLowerCase() === 'online') {
+                        isOnline = true;
+                        
                         // Se é uma nova sessão (não havia sessão ativa)
                         if (sessionStartTime === null) {
                             sessionStartTime = new Date();
@@ -302,6 +361,8 @@
                     } 
                     // Se o status não é mais "Jogando" ou "online"
                     else {
+                        isOnline = false;
+                        
                         // Se havia uma sessão ativa, finalizá-la
                         if (sessionStartTime !== null) {
                             saveSession(sessionStartTime, new Date());
@@ -318,12 +379,32 @@
                     
                 } catch (error) {
                     console.error('Erro ao verificar status:', error);
-                    statusText.textContent = 'Erro ao verificar status';
-                    statusIndicator.className = 'status-indicator offline';
+                    handleError();
                 } finally {
                     checkNowButton.textContent = 'Verificar Agora';
                     checkNowButton.disabled = false;
                 }
+            }
+            
+            function handleError() {
+                statusText.textContent = 'Erro ao verificar status';
+                statusIndicator.className = 'status-indicator unknown';
+                currentStatusElement.textContent = 'Erro';
+                errorMessage.style.display = 'block';
+                
+                // Tentar novamente após 60 segundos
+                let countdown = 60;
+                countdownElement.textContent = countdown;
+                
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    countdownElement.textContent = countdown;
+                    
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        checkPlayerStatus();
+                    }
+                }, 1000);
             }
             
             // Função para atualizar a exibição do status
@@ -359,12 +440,15 @@
                 nextCheckTime = new Date(now.getTime() + seconds * 1000);
                 
                 // Atualizar a exibição a cada segundo
-                const countdownInterval = setInterval(() => {
+                if (window.countdownInterval) {
+                    clearInterval(window.countdownInterval);
+                }
+                
+                window.countdownInterval = setInterval(() => {
                     const now = new Date();
                     const diff = nextCheckTime - now;
                     
                     if (diff <= 0) {
-                        clearInterval(countdownInterval);
                         nextCheckElement.textContent = 'Em andamento...';
                     } else {
                         const minutes = Math.floor(diff / 60000);
