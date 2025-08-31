@@ -321,7 +321,7 @@
                     checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
                     
                     // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const proxyUrl = 'https://corsproxy.io/?';
                     const targetUrl = 'http://201.23.67.218:8000/get-users-status?user_ids=8631412913%2C7738147772%2C9005903775';
                     
                     const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
