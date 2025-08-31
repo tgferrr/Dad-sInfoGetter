@@ -182,7 +182,6 @@
             background-color: #ffeeee;
             border-radius: 5px;
             margin-top: 10px;
-            display: none;
         }
         
         .info-message {
@@ -228,7 +227,7 @@
                 <p><strong>Localização:</strong> <span id="locationText">-</span></p>
                 <p><strong>Jogo:</strong> <span id="gameText">-</span></p>
             </div>
-            <div id="errorMessage" class="error-message">
+            <div id="errorMessage" class="error-message" style="display: none;">
                 Erro ao conectar com o servidor. Verificando novamente em <span id="countdown">60</span> segundos.
             </div>
         </div>
@@ -324,8 +323,8 @@
                     checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
                     errorMessage.style.display = 'none';
                     
-                    // Usando um proxy CORS para contornar restrições de mesma origem
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
+                    const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=';
                     const targetUrl = 'http://201.23.67.218:8000/get-user-status/8631412913';
                     
                     const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
