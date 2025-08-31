@@ -526,4 +526,82 @@
             // Função para atualizar a última verificação
             function updateLastChecked() {
                 const now = new Date();
-                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()
+                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()}`;
+            }
+            
+            // Função para atualizar o tempo da próxima verificação
+            function updateNextCheckTime(seconds) {
+                const now = new Date();
+                nextCheckTime = new Date(now.getTime() + seconds * 1000);
+                
+                // Atualizar a exibição a cada segundo
+                if (window.countdownInterval) {
+                    clearInterval(window.countdownInterval);
+                }
+                
+                window.countdownInterval = setInterval(() => {
+                    const now = new Date();
+                    const diff = nextCheckTime - now;
+                    
+                    if (diff <= 0) {
+                        nextCheckElement.textContent = 'Em andamento...';
+                    } else {
+                        const minutes = Math.floor(diff / 60000);
+                        const seconds = Math.floor((diff % 60000) / 1000);
+                        nextCheckElement.textContent = `${minutes}m ${seconds}s`;
+                    }
+                }, 1000);
+            }
+            
+            // Função para salvar uma sessão no localStorage
+            function saveSession(start, end) {
+                const duration = end - start; // Duração em milissegundos
+                const durationHours = (duration / (1000 * 60 * 60)).toFixed(2);
+                
+                const session = {
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                    duration: duration,
+                    durationHours: parseFloat(durationHours)
+                };
+                
+                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
+                sessions.push(session);
+                localStorage.setItem('playerSessions', JSON.stringify(sessions));
+                
+                updateDisplay();
+            }
+            
+            // Função para atualizar a exibição com dados do localStorage
+            function updateDisplay() {
+                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
+                
+                // Calcular tempo total
+                const totalMilliseconds = sessions.reduce((total, session) => total + session.duration, 0);
+                const totalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+                
+                // Atualizar elementos da interface
+                totalTimeElement.textContent = `${totalHours} horas`;
+                sessionCountElement.textContent = sessions.length;
+                
+                // Atualizar lista de sessões
+                if (sessions.length === 0) {
+                    sessionsList.innerHTML = '<p>Nenhuma sessão registrada ainda.</p>';
+                } else {
+                    sessionsList.innerHTML = sessions.map((session, index) => `
+                        <div class="session-item">
+                            <div>
+                                <div>Sessão ${index + 1}</div>
+                                <div class="session-time">
+                                    ${new Date(session.start).toLocaleString()} - ${new Date(session.end).toLocaleString()}
+                                </div>
+                            </div>
+                            <div class="session-duration">${session.durationHours} horas</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
