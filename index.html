@@ -131,6 +131,11 @@
             color: var(--primary);
         }
         
+        .current-session {
+            background-color: #e8f5e9;
+            border-left: 4px solid var(--online);
+        }
+        
         button {
             background-color: var(--primary);
             color: white;
@@ -227,6 +232,9 @@
                 <p><strong>Localização:</strong> <span id="locationText">-</span></p>
                 <p><strong>Jogo:</strong> <span id="gameText">-</span></p>
             </div>
+            <div id="currentSessionInfo" style="display: none;">
+                <p><strong>Sessão atual:</strong> <span id="currentSessionTimer">00:00:00</span></p>
+            </div>
             <div id="errorMessage" class="error-message" style="display: none;">
                 Erro ao conectar com o servidor. Verificando novamente em <span id="countdown">60</span> segundos.
             </div>
@@ -284,16 +292,26 @@
             const resetButton = document.getElementById('resetButton');
             const errorMessage = document.getElementById('errorMessage');
             const countdownElement = document.getElementById('countdown');
+            const currentSessionInfo = document.getElementById('currentSessionInfo');
+            const currentSessionTimer = document.getElementById('currentSessionTimer');
             
             let checkInterval;
             let currentStatus = '';
             let sessionStartTime = null;
             let nextCheckTime = null;
             let isOnline = false;
+            let sessionTimerInterval = null;
             
             // Inicializar dados no localStorage se não existirem
             if (!localStorage.getItem('playerSessions')) {
                 localStorage.setItem('playerSessions', JSON.stringify([]));
+            }
+            
+            // Verificar se há uma sessão ativa no localStorage
+            const activeSession = localStorage.getItem('activeSession');
+            if (activeSession) {
+                sessionStartTime = new Date(JSON.parse(activeSession).startTime);
+                updateSessionTimer();
             }
             
             // Atualizar exibição com dados do localStorage
@@ -311,6 +329,10 @@
                 resetButton.addEventListener('click', function() {
                     if (confirm('Tem certeza que deseja limpar todo o histórico?')) {
                         localStorage.setItem('playerSessions', JSON.stringify([]));
+                        localStorage.removeItem('activeSession');
+                        sessionStartTime = null;
+                        clearInterval(sessionTimerInterval);
+                        currentSessionInfo.style.display = 'none';
                         updateDisplay();
                     }
                 });
@@ -350,7 +372,14 @@
                         // Se é uma nova sessão (não havia sessão ativa)
                         if (sessionStartTime === null) {
                             sessionStartTime = new Date();
+                            // Salvar sessão ativa no localStorage
+                            localStorage.setItem('activeSession', JSON.stringify({
+                                startTime: sessionStartTime
+                            }));
+                            updateSessionTimer();
                         }
+                        
+                        currentSessionInfo.style.display = 'block';
                         
                         // Se não está verificando a cada 1 minuto, ajustar o intervalo
                         if (!checkInterval || checkInterval !== 60000) {
@@ -367,6 +396,9 @@
                         if (sessionStartTime !== null) {
                             saveSession(sessionStartTime, new Date());
                             sessionStartTime = null;
+                            localStorage.removeItem('activeSession');
+                            clearInterval(sessionTimerInterval);
+                            currentSessionInfo.style.display = 'none';
                         }
                         
                         // Se não está verificando a cada 10 minutos, ajustar o intervalo
@@ -384,6 +416,25 @@
                     checkNowButton.textContent = 'Verificar Agora';
                     checkNowButton.disabled = false;
                 }
+            }
+            
+            function updateSessionTimer() {
+                if (sessionTimerInterval) {
+                    clearInterval(sessionTimerInterval);
+                }
+                
+                sessionTimerInterval = setInterval(() => {
+                    if (sessionStartTime) {
+                        const now = new Date();
+                        const diff = now - sessionStartTime;
+                        const hours = Math.floor(diff / 3600000);
+                        const minutes = Math.floor((diff % 3600000) / 60000);
+                        const seconds = Math.floor((diff % 60000) / 1000);
+                        
+                        currentSessionTimer.textContent = 
+                            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                }, 1000);
             }
             
             function handleError() {
@@ -470,43 +521,4 @@
                     durationHours: parseFloat(durationHours)
                 };
                 
-                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
-                sessions.push(session);
-                localStorage.setItem('playerSessions', JSON.stringify(sessions));
-                
-                updateDisplay();
-            }
-            
-            // Função para atualizar a exibição com dados do localStorage
-            function updateDisplay() {
-                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
-                
-                // Calcular tempo total
-                const totalMilliseconds = sessions.reduce((total, session) => total + session.duration, 0);
-                const totalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
-                
-                // Atualizar elementos da interface
-                totalTimeElement.textContent = `${totalHours} horas`;
-                sessionCountElement.textContent = sessions.length;
-                
-                // Atualizar lista de sessões
-                if (sessions.length === 0) {
-                    sessionsList.innerHTML = '<p>Nenhuma sessão registrada ainda.</p>';
-                } else {
-                    sessionsList.innerHTML = sessions.map((session, index) => `
-                        <div class="session-item">
-                            <div>
-                                <div>Sessão ${index + 1}</div>
-                                <div class="session-time">
-                                    ${new Date(session.start).toLocaleString()} - ${new Date(session.end).toLocaleString()}
-                                </div>
-                            </div>
-                            <div class="session-duration">${session.durationHours} horas</div>
-                        </div>
-                    `).join('');
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+                const s
