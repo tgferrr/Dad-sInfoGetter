@@ -346,8 +346,8 @@
                     errorMessage.style.display = 'none';
                     
                     // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
-                    const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=';
-                    const targetUrl = 'http://201.23.67.218:8000/get-user-status/8631412913';
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const targetUrl = 'http://201.23.67.218:8000/get-users-status?user_ids=8631412913%2C7738147772%2C9005903775';
                     
                     const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
                         method: 'GET',
@@ -361,8 +361,16 @@
                     }
                     
                     const data = await response.json();
-                    const newStatus = data.status || 'unknown';
-                    updateStatusDisplay(data);
+                    
+                    // Encontrar o usuário com ID 8631412913
+                    const userData = data.find(user => user.userId == 8631412913);
+                    
+                    if (!userData) {
+                        throw new Error('Usuário não encontrado na resposta');
+                    }
+                    
+                    const newStatus = userData.status || 'unknown';
+                    updateStatusDisplay(userData);
                     updateLastChecked();
                     
                     // Se o status é "Jogando" ou "online"
@@ -521,4 +529,43 @@
                     durationHours: parseFloat(durationHours)
                 };
                 
-                const s
+                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
+                sessions.push(session);
+                localStorage.setItem('playerSessions', JSON.stringify(sessions));
+                
+                updateDisplay();
+            }
+            
+            // Função para atualizar a exibição com dados do localStorage
+            function updateDisplay() {
+                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
+                
+                // Calcular tempo total
+                const totalMilliseconds = sessions.reduce((total, session) => total + session.duration, 0);
+                const totalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+                
+                // Atualizar elementos da interface
+                totalTimeElement.textContent = `${totalHours} horas`;
+                sessionCountElement.textContent = sessions.length;
+                
+                // Atualizar lista de sessões
+                if (sessions.length === 0) {
+                    sessionsList.innerHTML = '<p>Nenhuma sessão registrada ainda.</p>';
+                } else {
+                    sessionsList.innerHTML = sessions.map((session, index) => `
+                        <div class="session-item">
+                            <div>
+                                <div>Sessão ${index + 1}</div>
+                                <div class="session-time">
+                                    ${new Date(session.start).toLocaleString()} - ${new Date(session.end).toLocaleString()}
+                                </div>
+                            </div>
+                            <div class="session-duration">${session.durationHours} horas</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
