@@ -197,6 +197,19 @@
             margin-top: 10px;
         }
         
+        .proxy-options {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .proxy-options select {
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+        
         @media (max-width: 768px) {
             .status-container {
                 flex-direction: column;
@@ -237,6 +250,13 @@
             </div>
             <div id="errorMessage" class="error-message" style="display: none;">
                 Erro ao conectar com o servidor. Verificando novamente em <span id="countdown">60</span> segundos.
+            </div>
+            <div class="proxy-options">
+                <p><strong>Opções de conexão:</strong></p>
+                <select id="proxySelect">
+                    <option value="corsproxy">CORS Proxy (Recomendado)</option>
+                    <option value="direct">Tentar conexão direta (pode falhar)</option>
+                </select>
             </div>
         </div>
         
@@ -294,6 +314,7 @@
             const countdownElement = document.getElementById('countdown');
             const currentSessionInfo = document.getElementById('currentSessionInfo');
             const currentSessionTimer = document.getElementById('currentSessionTimer');
+            const proxySelect = document.getElementById('proxySelect');
             
             let checkInterval;
             let currentStatus = '';
@@ -336,6 +357,10 @@
                         updateDisplay();
                     }
                 });
+                
+                proxySelect.addEventListener('change', function() {
+                    checkPlayerStatus();
+                });
             }
             
             // Função para buscar o status do jogador
@@ -345,11 +370,20 @@
                     checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
                     errorMessage.style.display = 'none';
                     
-                    // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const proxyType = proxySelect.value;
+                    let apiUrl;
+                    
                     const targetUrl = 'http://201.23.67.218:8000/get-users-status?user_ids=8631412913%2C7738147772%2C9005903775';
                     
-                    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
+                    if (proxyType === 'corsproxy') {
+                        // Usando um proxy CORS confiável
+                        apiUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+                    } else {
+                        // Tentativa de conexão direta (pode falhar devido a CORS)
+                        apiUrl = targetUrl;
+                    }
+                    
+                    const response = await fetch(apiUrl, {
                         method: 'GET',
                         headers: {
                             'accept': 'application/json'
@@ -363,7 +397,9 @@
                     const data = await response.json();
                     
                     // Encontrar o usuário com ID 8631412913
-                    const userData = data.find(user => user.userId == 8631412913);
+                    const userData = Array.isArray(data) ? 
+                        data.find(user => user.userId == 8631412913) : 
+                        data;
                     
                     if (!userData) {
                         throw new Error('Usuário não encontrado na resposta');
@@ -490,82 +526,4 @@
             // Função para atualizar a última verificação
             function updateLastChecked() {
                 const now = new Date();
-                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()}`;
-            }
-            
-            // Função para atualizar o tempo da próxima verificação
-            function updateNextCheckTime(seconds) {
-                const now = new Date();
-                nextCheckTime = new Date(now.getTime() + seconds * 1000);
-                
-                // Atualizar a exibição a cada segundo
-                if (window.countdownInterval) {
-                    clearInterval(window.countdownInterval);
-                }
-                
-                window.countdownInterval = setInterval(() => {
-                    const now = new Date();
-                    const diff = nextCheckTime - now;
-                    
-                    if (diff <= 0) {
-                        nextCheckElement.textContent = 'Em andamento...';
-                    } else {
-                        const minutes = Math.floor(diff / 60000);
-                        const seconds = Math.floor((diff % 60000) / 1000);
-                        nextCheckElement.textContent = `${minutes}m ${seconds}s`;
-                    }
-                }, 1000);
-            }
-            
-            // Função para salvar uma sessão no localStorage
-            function saveSession(start, end) {
-                const duration = end - start; // Duração em milissegundos
-                const durationHours = (duration / (1000 * 60 * 60)).toFixed(2);
-                
-                const session = {
-                    start: start.toISOString(),
-                    end: end.toISOString(),
-                    duration: duration,
-                    durationHours: parseFloat(durationHours)
-                };
-                
-                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
-                sessions.push(session);
-                localStorage.setItem('playerSessions', JSON.stringify(sessions));
-                
-                updateDisplay();
-            }
-            
-            // Função para atualizar a exibição com dados do localStorage
-            function updateDisplay() {
-                const sessions = JSON.parse(localStorage.getItem('playerSessions') || '[]');
-                
-                // Calcular tempo total
-                const totalMilliseconds = sessions.reduce((total, session) => total + session.duration, 0);
-                const totalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
-                
-                // Atualizar elementos da interface
-                totalTimeElement.textContent = `${totalHours} horas`;
-                sessionCountElement.textContent = sessions.length;
-                
-                // Atualizar lista de sessões
-                if (sessions.length === 0) {
-                    sessionsList.innerHTML = '<p>Nenhuma sessão registrada ainda.</p>';
-                } else {
-                    sessionsList.innerHTML = sessions.map((session, index) => `
-                        <div class="session-item">
-                            <div>
-                                <div>Sessão ${index + 1}</div>
-                                <div class="session-time">
-                                    ${new Date(session.start).toLocaleString()} - ${new Date(session.end).toLocaleString()}
-                                </div>
-                            </div>
-                            <div class="session-duration">${session.durationHours} horas</div>
-                        </div>
-                    `).join('');
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()
