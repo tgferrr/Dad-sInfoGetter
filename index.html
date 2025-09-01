@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor de Status do Jogador</title>
+    <title>Monitor de Status de Jogadores</title>
     <style>
         :root {
             --primary: #3498db;
@@ -16,101 +16,501 @@
             --border: #dddddd;
         }
 
-        body {
-            font-family: Arial, sans-serif;
-            background: var(--background);
-            color: var(--text);
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 20px;
+            line-height: 1.6;
         }
 
         header {
-            margin-bottom: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .player-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .player-id {
+            font-weight: bold;
+            color: var(--primary);
         }
 
         .status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .online { background-color: var(--online); }
+        .offline { background-color: var(--offline); }
+        .playing { background-color: var(--playing); }
+        .unknown { background-color: #95a5a6; }
+
+        .status-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .last-checked {
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        .player-info {
+            margin-top: 15px;
+        }
+
+        .player-info p {
+            margin: 5px 0;
+        }
+
+        .stats {
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .session-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .session-item {
             padding: 10px;
-            border-radius: 6px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-item:last-child {
+            border-bottom: none;
+        }
+
+        .session-time {
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        .session-duration {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .loading {
             display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: var(--offline);
+            padding: 10px;
+            background-color: #ffeeee;
+            border-radius: 5px;
             margin-top: 10px;
         }
 
-        .online { background: var(--online); color: #fff; }
-        .jogando { background: var(--playing); color: #fff; }
-        .offline { background: var(--offline); color: #fff; }
+        @media (max-width: 768px) {
+            .players-grid {
+                grid-template-columns: 1fr;
+            }
 
-        pre {
-            background: #eee;
-            padding: 10px;
-            border-radius: 6px;
-            white-space: pre-wrap;
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>Monitor de Status do Jogador</h1>
-        <p>Monitorando o status do usuário: <strong>8631412913</strong></p>
+        <h1>Monitor de Status de Jogadores</h1>
+        <p>Monitorando os status de múltiplos jogadores</p>
     </header>
 
-    <div id="status" class="status">Carregando...</div>
+    <div class="players-grid" id="playersContainer">
+        <!-- Os cards dos jogadores serão inseridos aqui via JavaScript -->
+    </div>
 
-    <h2>Sessões salvas</h2>
-    <pre id="log">[]</pre>
+    <div class="controls">
+        <button id="checkNowButton">
+            <span class="loading"></span> Verificar Agora
+        </button>
+        <button id="resetButton">Limpar Histórico de Todos</button>
+    </div>
 
     <script>
-        const ENDPOINT = "http://201.23.67.218:8000/get-user-status/8631412913";
-        let intervalo = null;
-        let ultimaSessao = null;
+        document.addEventListener('DOMContentLoaded', function() {
+            const playersContainer = document.getElementById('playersContainer');
+            const checkNowButton = document.getElementById('checkNowButton');
+            const resetButton = document.getElementById('resetButton');
 
-        function salvarSessao(sessao) {
-            let dados = JSON.parse(localStorage.getItem("sessoes") || "[]");
-            dados.push(sessao);
-            localStorage.setItem("sessoes", JSON.stringify(dados));
-            document.getElementById("log").textContent = JSON.stringify(dados, null, 2);
-        }
+            // IDs dos jogadores a serem monitorados
+            const playerIds = ['8631412913', '7738147772', '9005903775'];
+            let checkInterval;
 
-        async function checarStatus() {
-            try {
-                const resp = await fetch(ENDPOINT, { headers: { accept: "application/json" } });
-                const data = await resp.json();
-                const status = (data.status || "").toLowerCase();
-
-                const statusDiv = document.getElementById("status");
-                statusDiv.textContent = `Status: ${status}`;
-                statusDiv.className = "status " + 
-                    (status.includes("jogando") ? "jogando" : 
-                     status === "online" ? "online" : "offline");
-
-                const agora = Date.now();
-
-                if (status === "jogando" || status === "online") {
-                    if (!ultimaSessao) {
-                        ultimaSessao = { inicio: agora, status: status };
-                    }
-                    atualizarIntervalo(60000); // 1 minuto
-                } else {
-                    if (ultimaSessao) {
-                        ultimaSessao.fim = agora;
-                        ultimaSessao.duracaoHoras = ((ultimaSessao.fim - ultimaSessao.inicio) / 1000 / 60 / 60).toFixed(2);
-                        salvarSessao(ultimaSessao);
-                        ultimaSessao = null;
-                    }
-                    atualizarIntervalo(600000); // 10 minutos
+            // Inicializar dados no localStorage para cada jogador
+            playerIds.forEach(playerId => {
+                if (!localStorage.getItem(`playerSessions_${playerId}`)) {
+                    localStorage.setItem(`playerSessions_${playerId}`, JSON.stringify([]));
                 }
-            } catch (err) {
-                console.error("Erro ao buscar status:", err);
+            });
+
+            // Criar os cards para cada jogador
+            playerIds.forEach(playerId => {
+                createPlayerCard(playerId);
+            });
+
+            // Atualizar exibição com dados do localStorage
+            updateAllDisplays();
+
+            // Iniciar a verificação
+            checkPlayersStatus();
+            setupEventListeners();
+
+            function setupEventListeners() {
+                checkNowButton.addEventListener('click', function() {
+                    checkPlayersStatus();
+                });
+
+                resetButton.addEventListener('click', function() {
+                    if (confirm('Tem certeza que deseja limpar todo o histórico de todos os jogadores?')) {
+                        playerIds.forEach(playerId => {
+                            localStorage.setItem(`playerSessions_${playerId}`, JSON.stringify([]));
+                        });
+                        updateAllDisplays();
+                    }
+                });
             }
-        }
 
-        function atualizarIntervalo(ms) {
-            if (intervalo) clearInterval(intervalo);
-            intervalo = setInterval(checarStatus, ms);
-        }
+            function createPlayerCard(playerId) {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.id = `player-${playerId}`;
+                card.innerHTML = `
+                    <div class="player-header">
+                        <div class="player-id">ID: ${playerId}</div>
+                        <div class="last-checked">Última verificação: -</div>
+                    </div>
+                    <div class="status">
+                        <div id="statusIndicator-${playerId}" class="status-indicator unknown"></div>
+                        <div id="statusText-${playerId}" class="status-text">Carregando...</div>
+                    </div>
+                    <div class="player-info">
+                        <p><strong>Localização:</strong> <span id="locationText-${playerId}">-</span></p>
+                        <p><strong>Jogo:</strong> <span id="gameText-${playerId}">-</span></p>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <span>Tempo total online:</span>
+                            <span id="totalTime-${playerId}">0 horas</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Número de sessões:</span>
+                            <span id="sessionCount-${playerId}">0</span>
+                        </div>
+                    </div>
+                    <div class="session-list" id="sessionsList-${playerId}">
+                        <p>Nenhuma sessão registrada ainda.</p>
+                    </div>
+                `;
+                playersContainer.appendChild(card);
+            }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById("log").textContent = localStorage.getItem("sessoes") || "[]";
-            checarStatus();
+            // Função para buscar o status de todos os jogadores
+            async function checkPlayersStatus() {
+                try {
+                    checkNowButton.disabled = true;
+                    checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
+
+                    // Tentativa de conexão direta (pode falhar devido a CORS)
+                    const targetUrl = 'http://201.23.67.218:8000/get-users-status?user_ids=8631412913%2C7738147772%2C9005903775';
+
+                    const response = await fetch(targetUrl, {
+                        method: 'GET',
+                        headers: {
+                            'accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Verificar se algum jogador está online para ajustar o intervalo
+                    let anyOnline = false;
+
+                    // Atualizar cada jogador com seus dados
+                    playerIds.forEach(playerId => {
+                        const playerData = data.find(user => user.userId == playerId);
+                        if (playerData) {
+                            updatePlayerStatus(playerId, playerData);
+
+                            // Verificar se este jogador está online
+                            if (playerData.status.toLowerCase().includes('jogando') || 
+                                playerData.status.toLowerCase() === 'online') {
+                                anyOnline = true;
+                            }
+                        } else {
+                            updatePlayerError(playerId, 'Jogador não encontrado');
+                        }
+                    });
+
+                    // Ajustar intervalo baseado no status
+                    if (anyOnline) {
+                        if (!checkInterval || checkInterval !== 60000) {
+                            clearInterval(checkInterval);
+                            checkInterval = setInterval(checkPlayersStatus, 60000); // 1 minuto
+                        }
+                    } else {
+                        if (!checkInterval || checkInterval !== 600000) {
+                            clearInterval(checkInterval);
+                            checkInterval = setInterval(checkPlayersStatus, 600000); // 10 minutos
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao verificar status:', error);
+                    playerIds.forEach(playerId => {
+                        updatePlayerError(playerId, 'Erro de conexão');
+                    });
+
+                    // Tentar novamente após 60 segundos
+                    setTimeout(checkPlayersStatus, 60000);
+                } finally {
+                    checkNowButton.textContent = 'Verificar Agora';
+                    checkNowButton.disabled = false;
+                }
+            }
+
+            function updatePlayerStatus(playerId, data) {
+                const statusIndicator = document.getElementById(`statusIndicator-${playerId}`);
+                const statusText = document.getElementById(`statusText-${playerId}`);
+                const locationText = document.getElementById(`locationText-${playerId}`);
+                const gameText = document.getElementById(`gameText-${playerId}`);
+                const lastChecked = document.querySelector(`#player-${playerId} .last-checked`);
+
+                const newStatus = data.status || 'unknown';
+                statusText.textContent = `Status: ${data.status}`;
+
+                // Atualizar última verificação
+                const now = new Date();
+                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()}`;
+
+                if (data.status.toLowerCase().includes('jogando')) {
+                    statusIndicator.className = 'status-indicator playing';
+                    locationText.textContent = data.lastLocation || 'Não disponível';
+                    gameText.textContent = data.game ? data.game.gameName : 'Não disponível';
+
+                    // Iniciar/continuar sessão se necessário
+                    handlePlayerSession(playerId, true);
+                } else if (data.status.toLowerCase() === 'online') {
+                    statusIndicator.className = 'status-indicator online';
+                    locationText.textContent = data.lastLocation || 'Não disponível';
+                    gameText.textContent = data.game ? data.game.gameName : 'Não disponível';
+
+                    // Iniciar/continuar sessão se necessário
+                    handlePlayerSession(playerId, true);
+                } else {
+                    statusIndicator.className = 'status-indicator offline';
+                    locationText.textContent = data.lastLocation || 'Não disponível';
+                    gameText.textContent = 'Não está em jogo';
+
+                    // Finalizar sessão se necessário
+                    handlePlayerSession(playerId, false);
+                }
+
+                // Atualizar estatísticas
+                updatePlayerDisplay(playerId);
+            }
+
+            function updatePlayerError(playerId, errorMsg) {
+                const statusIndicator = document.getElementById(`statusIndicator-${playerId}`);
+                const statusText = document.getElementById(`statusText-${playerId}`);
+                const lastChecked = document.querySelector(`#player-${playerId} .last-checked`);
+
+                statusText.textContent = errorMsg;
+                statusIndicator.className = 'status-indicator unknown';
+
+                // Atualizar última verificação
+                const now = new Date();
+                lastChecked.textContent = `Última verificação: ${now.toLocaleTimeString()}`;
+            }
+
+            function handlePlayerSession(playerId, isOnline) {
+                let sessionStartTime = localStorage.getItem(`sessionStart_${playerId}`);
+
+                if (isOnline) {
+                    // Se o jogador está online e não temos uma sessão iniciada
+                    if (!sessionStartTime) {
+                        sessionStartTime = new Date().toISOString();
+                        localStorage.setItem(`sessionStart_${playerId}`, sessionStartTime);
+                    }
+                } else {
+                    // Se o jogador está offline e temos uma sessão iniciada
+                    if (sessionStartTime) {
+                        const startTime = new Date(sessionStartTime);
+                        const endTime = new Date();
+                        saveSession(playerId, startTime, endTime);
+                        localStorage.removeItem(`sessionStart_${playerId}`);
+                    }
+                }
+            }
+
+            function saveSession(playerId, start, end) {
+                const duration = end - start; // Duração em milissegundos
+                const durationHours = (duration / (1000 * 60 * 60)).toFixed(2);
+
+                const session = {
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                    duration: duration,
+                    durationHours: parseFloat(durationHours)
+                };
+
+                const sessions = JSON.parse(localStorage.getItem(`playerSessions_${playerId}`) || '[]');
+                sessions.push(session);
+                localStorage.setItem(`playerSessions_${playerId}`, JSON.stringify(sessions));
+
+                updatePlayerDisplay(playerId);
+            }
+
+            function updatePlayerDisplay(playerId) {
+                const sessions = JSON.parse(localStorage.getItem(`playerSessions_${playerId}`) || '[]');
+                const totalTimeElement = document.getElementById(`totalTime-${playerId}`);
+                const sessionCountElement = document.getElementById(`sessionCount-${playerId}`);
+                const sessionsList = document.getElementById(`sessionsList-${playerId}`);
+
+                // Calcular tempo total
+                const totalMilliseconds = sessions.reduce((total, session) => total + session.duration, 0);
+                const totalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+
+                // Atualizar elementos da interface
+                totalTimeElement.textContent = `${totalHours} horas`;
+                sessionCountElement.textContent = sessions.length;
+
+                // Atualizar lista de sessões
+                if (sessions.length === 0) {
+                    sessionsList.innerHTML = '<p>Nenhuma sessão registrada ainda.</p>';
+                } else {
+                    sessionsList.innerHTML = sessions.map((session, index) => `
+                        <div class="session-item">
+                            <div>
+                                <div>Sessão ${index + 1}</div>
+                                <div class="session-time">
+                                    ${new Date(session.start).toLocaleString()} - ${new Date(session.end).toLocaleString()}
+                                </div>
+                            </div>
+                            <div class="session-duration">${session.durationHours} horas</div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            function updateAllDisplays() {
+                playerIds.forEach(playerId => {
+                    updatePlayerDisplay(playerId);
+                });
+            }
         });
     </script>
 </body>
