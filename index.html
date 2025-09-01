@@ -1,92 +1,117 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Monitor de Status do Jogador</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      color: #333;
-      padding: 20px;
-    }
-    h1 {
-      color: #3498db;
-    }
-    .status {
-      padding: 10px;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-    .online { background: #2ecc71; color: white; }
-    .jogando { background: #9b59b6; color: white; }
-    .offline { background: #e74c3c; color: white; }
-    pre {
-      background: #eee;
-      padding: 10px;
-      border-radius: 6px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Status do Jogador</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --online: #2ecc71;
+            --offline: #e74c3c;
+            --playing: #9b59b6;
+            --background: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #dddddd;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 20px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .online { background: var(--online); color: #fff; }
+        .jogando { background: var(--playing); color: #fff; }
+        .offline { background: var(--offline); color: #fff; }
+
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+        }
+    </style>
 </head>
 <body>
-  <h1>Status do Jogador</h1>
-  <div id="status" class="status">Carregando...</div>
-  <h2>Sessões salvas</h2>
-  <pre id="log">[]</pre>
+    <header>
+        <h1>Monitor de Status do Jogador</h1>
+        <p>Monitorando o status do usuário: <strong>8631412913</strong></p>
+    </header>
 
-  <script>
-    const ENDPOINT = "http://201.23.67.218:8000/get-user-status/8631412913";
-    let intervalo = null;
-    let ultimaSessao = null;
+    <div id="status" class="status">Carregando...</div>
 
-    function salvarSessao(sessao) {
-      let dados = JSON.parse(localStorage.getItem("sessoes") || "[]");
-      dados.push(sessao);
-      localStorage.setItem("sessoes", JSON.stringify(dados));
-      document.getElementById("log").textContent = JSON.stringify(dados, null, 2);
-    }
+    <h2>Sessões salvas</h2>
+    <pre id="log">[]</pre>
 
-    async function checarStatus() {
-      try {
-        const resp = await fetch(ENDPOINT, { headers: { accept: "application/json" } });
-        const data = await resp.json();
-        const status = data.status?.toLowerCase() || "desconhecido";
+    <script>
+        const ENDPOINT = "http://201.23.67.218:8000/get-user-status/8631412913";
+        let intervalo = null;
+        let ultimaSessao = null;
 
-        const statusDiv = document.getElementById("status");
-        statusDiv.textContent = `Status: ${status}`;
-        statusDiv.className = "status " + (status.includes("jogando") ? "jogando" : status === "online" ? "online" : "offline");
-
-        const agora = Date.now();
-
-        if (status === "jogando" || status === "online") {
-          if (!ultimaSessao) {
-            ultimaSessao = { inicio: agora, status: status };
-          }
-          atualizarIntervalo(60000); // 1 min
-        } else {
-          if (ultimaSessao) {
-            ultimaSessao.fim = agora;
-            ultimaSessao.duracaoHoras = ((ultimaSessao.fim - ultimaSessao.inicio) / 1000 / 60 / 60).toFixed(2);
-            salvarSessao(ultimaSessao);
-            ultimaSessao = null;
-          }
-          atualizarIntervalo(600000); // 10 min
+        function salvarSessao(sessao) {
+            let dados = JSON.parse(localStorage.getItem("sessoes") || "[]");
+            dados.push(sessao);
+            localStorage.setItem("sessoes", JSON.stringify(dados));
+            document.getElementById("log").textContent = JSON.stringify(dados, null, 2);
         }
-      } catch (err) {
-        console.error("Erro ao buscar status:", err);
-      }
-    }
 
-    function atualizarIntervalo(ms) {
-      if (intervalo) clearInterval(intervalo);
-      intervalo = setInterval(checarStatus, ms);
-    }
+        async function checarStatus() {
+            try {
+                const resp = await fetch(ENDPOINT, { headers: { accept: "application/json" } });
+                const data = await resp.json();
+                const status = (data.status || "").toLowerCase();
 
-    // Inicializar
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("log").textContent = localStorage.getItem("sessoes") || "[]";
-      checarStatus();
-    });
-  </script>
+                const statusDiv = document.getElementById("status");
+                statusDiv.textContent = `Status: ${status}`;
+                statusDiv.className = "status " + 
+                    (status.includes("jogando") ? "jogando" : 
+                     status === "online" ? "online" : "offline");
+
+                const agora = Date.now();
+
+                if (status === "jogando" || status === "online") {
+                    if (!ultimaSessao) {
+                        ultimaSessao = { inicio: agora, status: status };
+                    }
+                    atualizarIntervalo(60000); // 1 minuto
+                } else {
+                    if (ultimaSessao) {
+                        ultimaSessao.fim = agora;
+                        ultimaSessao.duracaoHoras = ((ultimaSessao.fim - ultimaSessao.inicio) / 1000 / 60 / 60).toFixed(2);
+                        salvarSessao(ultimaSessao);
+                        ultimaSessao = null;
+                    }
+                    atualizarIntervalo(600000); // 10 minutos
+                }
+            } catch (err) {
+                console.error("Erro ao buscar status:", err);
+            }
+        }
+
+        function atualizarIntervalo(ms) {
+            if (intervalo) clearInterval(intervalo);
+            intervalo = setInterval(checarStatus, ms);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("log").textContent = localStorage.getItem("sessoes") || "[]";
+            checarStatus();
+        });
+    </script>
 </body>
 </html>
