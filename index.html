@@ -2,187 +2,90 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monitor de Status do Jogador</title>
   <style>
-    /* Mantive o estilo original, só adicionei o input */
-    :root {
-      --primary: #3498db;
-      --online: #2ecc71;
-      --offline: #e74c3c;
-      --playing: #9b59b6;
-      --background: #f8f9fa;
-      --card-bg: #ffffff;
-      --text: #333333;
-      --border: #dddddd;
-    }
-
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--background);
-      color: var(--text);
-      max-width: 1000px;
-      margin: 0 auto;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
       padding: 20px;
-      line-height: 1.6;
     }
-
-    header {
-      text-align: center;
-      margin-bottom: 30px;
-      padding: 20px;
-      background: var(--card-bg);
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
     h1 {
-      color: var(--primary);
-      margin-bottom: 10px;
+      color: #3498db;
     }
-
-    .player-input {
-      margin-top: 15px;
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
     }
-
-    .player-input input {
-      padding: 8px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      width: 200px;
+    .online { background: #2ecc71; color: white; }
+    .jogando { background: #9b59b6; color: white; }
+    .offline { background: #e74c3c; color: white; }
+    pre {
+      background: #eee;
+      padding: 10px;
+      border-radius: 6px;
     }
-
-    .player-input button {
-      margin-left: 10px;
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .player-input button:hover {
-      background-color: #2980b9;
-    }
-
-    /* Resto do CSS igual ao que você já tinha */
   </style>
 </head>
 <body>
-  <header>
-    <h1>Monitor de Status do Jogador</h1>
-    <p>Monitorando o status do usuário: <strong id="playerCodeDisplay">-</strong></p>
-    <div class="player-input">
-      <input type="text" id="playerCodeInput" placeholder="Digite o código do jogador">
-      <button id="setPlayerCodeButton">Confirmar</button>
-    </div>
-  </header>
-
-  <!-- Restante do HTML igual ao seu código original -->
-  <div class="status-container">
-    <div class="card">
-      <h2>Status Atual</h2>
-      <div class="status">
-        <div id="statusIndicator" class="status-indicator unknown"></div>
-        <div>
-          <div id="statusText" class="status-text">Carregando...</div>
-          <div id="lastChecked" class="last-checked">Última verificação: -</div>
-        </div>
-      </div>
-      <div id="locationInfo">
-        <p><strong>Localização:</strong> <span id="locationText">-</span></p>
-        <p><strong>Jogo:</strong> <span id="gameText">-</span></p>
-      </div>
-      <div id="errorMessage" class="error-message" style="display: none;">
-        Erro ao conectar com o servidor. Verificando novamente em <span id="countdown">60</span> segundos.
-      </div>
-    </div>
-    
-    <div class="card">
-      <h2>Estatísticas</h2>
-      <div class="stats">
-        <div class="stat-item">
-          <span>Tempo total online:</span>
-          <span id="totalTime">0 horas</span>
-        </div>
-        <div class="stat-item">
-          <span>Número de sessões:</span>
-          <span id="sessionCount">0</span>
-        </div>
-        <div class="stat-item">
-          <span>Status atual:</span>
-          <span id="currentStatus">-</span>
-        </div>
-        <div class="stat-item">
-          <span>Próxima verificação em:</span>
-          <span id="nextCheck">-</span>
-        </div>
-      </div>
-      <div class="controls">
-        <button id="checkNowButton">
-          <span class="loading"></span> Verificar Agora
-        </button>
-        <button id="resetButton">Limpar Histórico</button>
-      </div>
-    </div>
-  </div>
-  
-  <div class="card">
-    <h2>Histórico de Sessões</h2>
-    <div id="sessionsList" class="session-list">
-      <p>Nenhuma sessão registrada ainda.</p>
-    </div>
-  </div>
+  <h1>Status do Jogador</h1>
+  <div id="status" class="status">Carregando...</div>
+  <h2>Sessões salvas</h2>
+  <pre id="log">[]</pre>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const playerCodeDisplay = document.getElementById('playerCodeDisplay');
-      const playerCodeInput = document.getElementById('playerCodeInput');
-      const setPlayerCodeButton = document.getElementById('setPlayerCodeButton');
-      
-      let playerCode = localStorage.getItem('playerCode') || '';
+    const ENDPOINT = "http://201.23.67.218:8000/get-user-status/8631412913";
+    let intervalo = null;
+    let ultimaSessao = null;
 
-      if (playerCode) {
-        playerCodeDisplay.textContent = playerCode;
-        playerCodeInput.value = playerCode;
-        checkPlayerStatus();
-      }
+    function salvarSessao(sessao) {
+      let dados = JSON.parse(localStorage.getItem("sessoes") || "[]");
+      dados.push(sessao);
+      localStorage.setItem("sessoes", JSON.stringify(dados));
+      document.getElementById("log").textContent = JSON.stringify(dados, null, 2);
+    }
 
-      setPlayerCodeButton.addEventListener('click', () => {
-        playerCode = playerCodeInput.value.trim();
-        if (!playerCode) {
-          alert('Digite um código válido!');
-          return;
+    async function checarStatus() {
+      try {
+        const resp = await fetch(ENDPOINT, { headers: { accept: "application/json" } });
+        const data = await resp.json();
+        const status = data.status?.toLowerCase() || "desconhecido";
+
+        const statusDiv = document.getElementById("status");
+        statusDiv.textContent = `Status: ${status}`;
+        statusDiv.className = "status " + (status.includes("jogando") ? "jogando" : status === "online" ? "online" : "offline");
+
+        const agora = Date.now();
+
+        if (status === "jogando" || status === "online") {
+          if (!ultimaSessao) {
+            ultimaSessao = { inicio: agora, status: status };
+          }
+          atualizarIntervalo(60000); // 1 min
+        } else {
+          if (ultimaSessao) {
+            ultimaSessao.fim = agora;
+            ultimaSessao.duracaoHoras = ((ultimaSessao.fim - ultimaSessao.inicio) / 1000 / 60 / 60).toFixed(2);
+            salvarSessao(ultimaSessao);
+            ultimaSessao = null;
+          }
+          atualizarIntervalo(600000); // 10 min
         }
-        localStorage.setItem('playerCode', playerCode);
-        playerCodeDisplay.textContent = playerCode;
-        checkPlayerStatus();
-      });
-
-      // Seu script original entra aqui, só troquei o código fixo pela variável playerCode:
-      async function checkPlayerStatus() {
-        if (!playerCode) return;
-        try {
-          const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=';
-          const targetUrl = `http://201.23.67.218:8000/get-user-status/${playerCode}`;
-          
-          const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
-            method: 'GET',
-            headers: {
-              'accept': 'application/json'
-            }
-          });
-
-          if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-
-          const data = await response.json();
-          console.log('Status do jogador:', data);
-          // Aqui você pode continuar com sua lógica normal de update...
-        } catch (error) {
-          console.error('Erro ao verificar status:', error);
-        }
+      } catch (err) {
+        console.error("Erro ao buscar status:", err);
       }
+    }
+
+    function atualizarIntervalo(ms) {
+      if (intervalo) clearInterval(intervalo);
+      intervalo = setInterval(checarStatus, ms);
+    }
+
+    // Inicializar
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("log").textContent = localStorage.getItem("sessoes") || "[]";
+      checarStatus();
     });
   </script>
 </body>
