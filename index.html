@@ -320,11 +320,10 @@
                     checkNowButton.disabled = true;
                     checkNowButton.innerHTML = '<span class="loading"></span> Verificando...';
                     
-                    // Usando um endpoint proxy seguro para contornar problemas de CORS e HTTPS
-                    const proxyUrl = 'https://corsproxy.io/?';
+                    // Tentativa de conexão direta (pode falhar devido a CORS)
                     const targetUrl = 'http://201.23.67.218:8000/get-users-status?user_ids=8631412913%2C7738147772%2C9005903775';
                     
-                    const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
+                    const response = await fetch(targetUrl, {
                         method: 'GET',
                         headers: {
                             'accept': 'application/json'
@@ -374,6 +373,9 @@
                     playerIds.forEach(playerId => {
                         updatePlayerError(playerId, 'Erro de conexão');
                     });
+                    
+                    // Tentar novamente após 60 segundos
+                    setTimeout(checkPlayersStatus, 60000);
                 } finally {
                     checkNowButton.textContent = 'Verificar Agora';
                     checkNowButton.disabled = false;
